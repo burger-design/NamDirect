@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "Farmer": {
+      "title": "Farmer/SME Profile",
+      "description": "Information about the vendor, their location, and contact details.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Auth UID" },
+        "businessName": { "type": "string" },
+        "region": { "type": "string", "enum": ["Khomas", "Erongo", "Otjozondjupa", "Oshana", "Ohangwena", "Omusati", "Oshikoto", "Kavango East", "Kavango West", "Zambezi", "Kunene", "Hardap", "||Karas", "Omaheke"] },
+        "whatsappNumber": { "type": "string", "description": "Format: +264..." },
+        "serviceType": { "type": "string", "enum": ["Livestock", "Vegetables", "Crafts", "Services"] },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "address": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "businessName", "region", "whatsappNumber"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Stock items sold by farmers.",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number", "description": "Price in NAD" },
+        "unit": { "type": "string", "description": "kg, unit, bunch, etc." },
+        "stockStatus": { "type": "boolean" },
+        "category": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "region": { "type": "string" },
+        "shippingOptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string", "description": "e.g. Standard, Express" },
+              "cost": { "type": "number" },
+              "estimatedDays": { "type": "string", "description": "e.g. 1-2 days" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerId", "name", "price", "unit"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase and delivery request.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "farmerId": { "type": "string" },
+        "productId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "delivered", "cancelled"] },
+        "deliveryLocation": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "address": { "type": "string" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "farmerId", "productId", "totalPrice"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Customer profile for buyers.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "farmers": {
+      "schema": "Farmer",
+      "description": "Collection of all registered farmers and SMEs."
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of registered customers."
+    },
+    "products": {
+      "schema": "Product",
+      "description": "Available products for sale."
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Tracked orders and delivery logistics."
+    }
+  }
+}

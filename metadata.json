@@ -1,0 +1,8 @@
+{
+  "name": "NamDirect",
+  "description": "A marketplace for Namibian SMEs and Farmers connecting local producers with buyers via doorstep delivery and GPS logistics.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
