@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Auth helpers
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,43 +10,67 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // --- Farmers ---
-    match /farmers/{farmerId} {
-      allow read: if true;
-      allow create: if isOwner(farmerId);
-      allow update, delete: if isOwner(farmerId);
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidFarmer(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) && 
+             data.uid is string && 
+             data.email is string &&
+             data.createdAt is string;
     }
 
-    // --- Users (Customers) ---
+    match /farmers/{farmerId} {
+      allow read: if true;
+      allow create: if isOwner(farmerId) && isValidFarmer(incoming());
+      allow update: if isOwner(farmerId);
+      allow delete: if isOwner(farmerId);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role == 'customer';
+    }
+
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId);
       allow delete: if false;
     }
 
-    // --- Products ---
-    match /products/{productId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.farmerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.farmerId == request.auth.uid;
+    function isValidProduct(data) {
+      return data.keys().hasAll(['farmerId', 'name', 'price', 'unit', 'category', 'stockStatus']) &&
+             data.farmerId is string &&
+             data.name is string &&
+             data.price is number &&
+             data.unit is string &&
+             data.category is string &&
+             data.stockStatus is bool;
     }
 
-    // --- Orders ---
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().farmerId == request.auth.uid && isValidProduct(incoming());
+      allow update: if isSignedIn() && existing().farmerId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().farmerId == request.auth.uid;
+    }
+
     match /orders/{orderId} {
       allow read: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid || 
-        resource.data.farmerId == request.auth.uid
+        existing().customerId == request.auth.uid || 
+        existing().farmerId == request.auth.uid
       );
-      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().customerId == request.auth.uid;
       allow update: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid || 
-        resource.data.farmerId == request.auth.uid
+        existing().customerId == request.auth.uid || 
+        existing().farmerId == request.auth.uid
       );
       allow delete: if false;
     }
 
-    // Default Deny (matches everything not explicitly allowed above)
     match /{document=**} {
       allow read, write: if false;
     }
