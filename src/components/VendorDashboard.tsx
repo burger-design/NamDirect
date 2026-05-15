@@ -161,6 +161,19 @@ export default function VendorDashboard({ user }: { user: User | null }) {
     }
   };
 
+  const toggleStock = async (product: Product) => {
+    try {
+      const now = new Date().toISOString();
+      await updateDoc(doc(db, 'products', product.id), { 
+        stockStatus: !product.stockStatus,
+        lastUpdatedAt: now
+      });
+      setProducts(products.map(p => p.id === product.id ? { ...p, stockStatus: !product.stockStatus, lastUpdatedAt: now } : p));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `products/${product.id}`);
+    }
+  };
+
   const updateLocation = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -275,19 +288,28 @@ export default function VendorDashboard({ user }: { user: User | null }) {
                         </div>
                         <span className="text-2xl font-black text-nam-gold tracking-tighter">{formatPrice(product.price)}</span>
                       </div>
-                      <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-50">
-                        <span className={cn(
-                          "text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest",
-                          product.stockStatus ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        )}>
-                          {product.stockStatus ? 'In Stock' : 'Out of Stock'}
-                        </span>
-                        <button 
-                          onClick={() => deleteProduct(product.id)}
-                          className="text-gray-300 hover:text-red-500 font-bold text-xs uppercase"
-                        >
-                          Remove
-                        </button>
+                      <div className="flex flex-col gap-3 mt-8 pt-6 border-t border-gray-50">
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => toggleStock(product)}
+                            className={cn(
+                              "text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest hover:opacity-80 transition-opacity",
+                              product.stockStatus ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                            )}>
+                            {product.stockStatus ? 'In Stock' : 'Out of Stock'}
+                          </button>
+                          <button 
+                            onClick={() => deleteProduct(product.id)}
+                            className="text-gray-300 hover:text-red-500 font-bold text-xs uppercase"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        {product.lastUpdatedAt && (
+                          <div className="text-[10px] text-gray-400 font-medium">
+                            Last Updated: {new Date(product.lastUpdatedAt).toLocaleString()}
+                          </div>
+                        )}
                       </div>
                    </div>
                  ))}

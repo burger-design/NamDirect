@@ -35,6 +35,7 @@ export interface Product {
   imageUrl: string;
   region: NamibiaRegion;
   createdAt: string;
+  lastUpdatedAt?: string;
   shippingOptions?: ShippingOption[];
 }
 
