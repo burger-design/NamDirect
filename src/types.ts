@@ -33,10 +33,25 @@ export interface Product {
   stockStatus: boolean;
   category: string;
   imageUrl: string;
+  images?: string[];
   region: NamibiaRegion;
   createdAt: string;
   lastUpdatedAt?: string;
   shippingOptions?: ShippingOption[];
+  rating?: number;
+  ratingCount?: number;
+}
+
+export interface Banner {
+  id: string;
+  farmerId: string;
+  imageUrl: string;
+  title: string;
+  linkUrl?: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface Order {
@@ -47,6 +62,10 @@ export interface Order {
   quantity: number;
   totalPrice: number;
   status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
+  deliveryStatus?: 'pending' | 'shipped' | 'out_for_delivery' | 'delivered';
+  trackingNumber?: string;
   deliveryLocation?: Location;
+  cancelReason?: string;
+  cancelComments?: string;
   createdAt: string;
 }

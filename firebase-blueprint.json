@@ -64,6 +64,8 @@
         "quantity": { "type": "number" },
         "totalPrice": { "type": "number" },
         "status": { "type": "string", "enum": ["pending", "confirmed", "delivered", "cancelled"] },
+        "deliveryStatus": { "type": "string", "enum": ["pending", "shipped", "out_for_delivery", "delivered"] },
+        "trackingNumber": { "type": "string" },
         "deliveryLocation": {
           "type": "object",
           "properties": {
@@ -89,6 +91,22 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email"]
+    },
+    "Banner": {
+      "title": "Banner",
+      "description": "Promotional banner",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "title": { "type": "string" },
+        "linkUrl": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerId", "imageUrl", "title", "startDate", "endDate"]
     }
   },
   "firestore": {
@@ -107,6 +125,10 @@
     "orders": {
       "schema": "Order",
       "description": "Tracked orders and delivery logistics."
+    },
+    "banners": {
+      "schema": "Banner",
+      "description": "Promotional banners"
     }
   }
 }

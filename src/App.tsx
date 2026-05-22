@@ -16,6 +16,8 @@ import SuppliersMap from './components/SuppliersMap';
 import Registration from './components/Registration';
 import CartSheet from './components/CartSheet';
 
+import CustomerOrderHistory from './components/CustomerOrderHistory';
+
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -78,6 +80,9 @@ function AppContent() {
 
                   {user ? (
                     <div className="flex items-center gap-4 border-l pl-4 border-gray-100">
+                      <Link to="/orders" className="text-sm font-bold text-nam-green hover:text-nam-gold transition-colors">
+                        My Orders
+                      </Link>
                       <div className="flex items-center gap-2">
                          <div className="w-8 h-8 rounded-full bg-nam-gold/20 flex items-center justify-center text-nam-green border border-nam-gold/30">
                           <UserIcon size={16} />
@@ -152,6 +157,7 @@ function AppContent() {
                   <MobileNavLink to="/marketplace" label="Marketplace" icon={<ShoppingBag />} onClick={() => setIsNavOpen(false)} />
                   <MobileNavLink to="/suppliers" label="Our Suppliers" icon={<MapPin />} onClick={() => setIsNavOpen(false)} />
                   <MobileNavLink to="/dashboard" label="Vendor Portal" icon={<Store />} onClick={() => setIsNavOpen(false)} />
+                  {user && <MobileNavLink to="/orders" label="My Orders" icon={<ShoppingBag />} onClick={() => setIsNavOpen(false)} />}
                   <MobileNavLink to="/delivery" label="Track Delivery" icon={<Navigation />} onClick={() => setIsNavOpen(false)} />
                   
                   <div className="pt-6 border-t border-gray-100 mt-auto">
@@ -186,6 +192,7 @@ function AppContent() {
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/dashboard" element={<VendorDashboard user={user} />} />
             <Route path="/delivery" element={<DeliveryTracker />} />
+            <Route path="/orders" element={<CustomerOrderHistory user={user} />} />
             <Route path="/suppliers" element={<SuppliersMap />} />
             <Route path="/registration" element={<Registration />} />
           </Routes>

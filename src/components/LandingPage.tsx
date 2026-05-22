@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { NAMIBIA_REGIONS } from '../constants';
 import { GoogleMapsWrapper } from './GoogleMapsWrapper';
 import { Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
+import PromoBanner from './PromoBanner';
 
 const featuredLocations = [
   { name: "Khomas", count: "120+ Farmers", img: "https://images.unsplash.com/photo-1547448415-e9f5b28e570d?auto=format&fit=crop&q=80&w=800" },
@@ -91,6 +92,11 @@ export default function LandingPage() {
               ))}
            </div>
         </div>
+      </section>
+
+      {/* Promotional Banners Section */}
+      <section className="relative z-20 -mt-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 mb-10">
+        <PromoBanner />
       </section>
 
       {/* Trust & Region Section */}

@@ -16,6 +16,8 @@ export default function DeliveryTracker() {
   const [farmer, setFarmer] = useState<Farmer | null>(null);
   const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [distance, setDistance] = useState<number | null>(null); // in meters
+  const [eta, setEta] = useState<string | null>(null); // e.g. "15 mins"
+  const [vehicleLocation, setVehicleLocation] = useState<google.maps.LatLngLiteral | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -70,12 +72,20 @@ export default function DeliveryTracker() {
   };
 
   const calculateDeliveryFee = (meters: number) => {
+    const km = meters / 1000;
     if (product?.shippingOptions && product.shippingOptions.length > 0) {
       const selected = product.shippingOptions.find(o => o.id === selectedShippingId);
-      return selected ? selected.cost : 0;
+      if (!selected) return 0;
+      
+      // If pickup, delivery is free
+      if (selected.name.toLowerCase().includes('pickup')) {
+        return 0;
+      }
+      
+      // Base cost from shipping option + 5 NAD per km
+      return selected.cost + (km * 5);
     }
     // Basic logic: 5 NAD per km, minimum 20 NAD
-    const km = meters / 1000;
     return Math.max(20, km * 5);
   };
 
@@ -92,6 +102,7 @@ export default function DeliveryTracker() {
                     `Delivery Location: ${googleMapsLink}\n` + 
                     `Product: ${product.name} (${formatPrice(product.price)})\n` +
                     `${deliveryMethodStr}\n` +
+                    (distance ? `Distance: ${(distance / 1000).toFixed(1)} km\n` : '') +
                     `Total with Delivery: ${formatPrice(product.price + calculateDeliveryFee(distance || 0))}\n\n` + 
                     `Please confirm if you can deliver!`;
     return `https://wa.me/${farmer.whatsappNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
@@ -156,10 +167,22 @@ export default function DeliveryTracker() {
                           </div>
                         </AdvancedMarker>
                       )}
+                      {vehicleLocation && (
+                        <AdvancedMarker position={vehicleLocation} zIndex={100}>
+                           <div className="w-12 h-12 bg-white rounded-full shadow-2xl flex items-center justify-center border-[3px] border-nam-gold">
+                              <Truck className="text-nam-green" size={24} />
+                           </div>
+                        </AdvancedMarker>
+                      )}
+                      
                       <DistanceCalculator
                         origin={farmer?.location ? { lat: farmer.location.lat, lng: farmer.location.lng } : null}
                         destination={userLocation}
-                        onDistanceCalculated={setDistance}
+                        onRouteCalculated={(dist, duration, vehiclePos) => {
+                          setDistance(dist);
+                          setEta(duration);
+                          if (vehiclePos) setVehicleLocation(vehiclePos);
+                        }}
                       />
                     </Map>
                   </GoogleMapsWrapper>
@@ -220,10 +243,8 @@ export default function DeliveryTracker() {
 
             {/* Right: Order Summary */}
             <div className="bg-nam-green text-white p-12 rounded-[4rem] shadow-2xl shadow-nam-green/30 sticky top-32">
+              {product && <ImageCarousel imageUrl={product.imageUrl} images={product.images} />}
               <div className="flex items-center gap-4 mb-12 pb-8 border-b border-white/10">
-                <div className="w-16 h-16 rounded-3xl overflow-hidden shrink-0 border-2 border-nam-gold">
-                  <img src={product?.imageUrl} className="w-full h-full object-cover" alt={product?.name} />
-                </div>
                 <div>
                   <h3 className="text-3xl font-black tracking-tighter leading-none mb-1">{product?.name}</h3>
                   <p className="text-white/60 font-bold text-sm tracking-tight">Vendor: {farmer?.businessName}</p>
@@ -241,6 +262,18 @@ export default function DeliveryTracker() {
                     {product?.shippingOptions?.find((o) => o.id === selectedShippingId)?.name || (distance ? "Standard Delivery" : "---")}
                   </span>
                 </div>
+                {distance && (
+                  <div className="flex justify-between items-center text-white/60 font-bold uppercase tracking-widest text-xs">
+                    <span>Distance</span>
+                    <span className="text-white">{(distance / 1000).toFixed(1)} km</span>
+                  </div>
+                )}
+                {eta && (
+                  <div className="flex justify-between items-center text-white/60 font-bold uppercase tracking-widest text-xs">
+                    <span>Live Tracking ETA</span>
+                    <span className="text-nam-gold animate-pulse">{eta}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-white/60 font-bold uppercase tracking-widest text-xs">
                   <span>Delivery Fee</span>
                   <span className="text-nam-gold">
@@ -340,14 +373,15 @@ export default function DeliveryTracker() {
   );
 }
 
-function DistanceCalculator({ origin, destination, onDistanceCalculated }: { 
+function DistanceCalculator({ origin, destination, onRouteCalculated }: { 
   origin: google.maps.LatLngLiteral | null, 
   destination: google.maps.LatLngLiteral | null,
-  onDistanceCalculated: (dist: number) => void
+  onRouteCalculated: (dist: number, durationStr: string, vehiclePos: google.maps.LatLngLiteral | null) => void
 }) {
   const map = useMap();
   const routesLib = useMapsLibrary('routes');
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
+  const animationRef = useRef<number>();
 
   useEffect(() => {
     const start = origin || { lat: -22.56, lng: 17.065 };
@@ -355,26 +389,95 @@ function DistanceCalculator({ origin, destination, onDistanceCalculated }: {
     if (!routesLib || !map || !destination) return;
 
     polylinesRef.current.forEach(p => p.setMap(null));
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
 
     routesLib.Route.computeRoutes({
       origin: start,
       destination: destination,
       travelMode: 'DRIVING',
-      fields: ['path', 'distanceMeters', 'viewport'],
+      routingPreference: 'TRAFFIC_AWARE',
+      fields: ['path', 'distanceMeters', 'duration', 'viewport'], // Changed 'durationMillis' to 'duration' assuming it returns string or object
     }).then(({ routes }) => {
       if (routes?.[0]) {
-        const newPolylines = routes[0].createPolylines();
+        const route = routes[0];
+        
+        // Traffic aware polylines if supported, otherwise normal
+        const newPolylines = route.createPolylines();
         newPolylines.forEach(p => {
           p.setOptions({ strokeColor: '#F4B400', strokeWeight: 6, strokeOpacity: 0.8 });
           p.setMap(map);
         });
         polylinesRef.current = newPolylines;
-        onDistanceCalculated(routes[0].distanceMeters || 0);
-        if (routes[0].viewport) map.fitBounds(routes[0].viewport);
+
+        // Try extracting duration string, fallback if not simple string
+        let durationStr = "Unknown";
+        const anyRoute = route as any;
+        if (typeof anyRoute.duration === 'string') {
+          durationStr = anyRoute.duration.replace('s', ' seconds');
+        } else if (anyRoute.duration) {
+          // If it's an object or something else, handle safely
+          durationStr = anyRoute.duration?.text || "Unknown";
+        }
+        
+        // Convert 'duration' string if it's like '900s'
+        if (typeof anyRoute.duration === 'string' && anyRoute.duration.endsWith('s')) {
+             const seconds = parseInt(anyRoute.duration.replace('s', ''), 10);
+             if (!isNaN(seconds)) {
+                 const minutes = Math.ceil(seconds / 60);
+                 durationStr = `${minutes} mins`;
+             }
+        }
+
+        // Send initial state: Start vehicle at origin
+        onRouteCalculated(
+           route.distanceMeters || 0,
+           durationStr,
+           start
+        );
+
+        if (route.viewport) map.fitBounds(route.viewport);
+
+        // Optional: animate vehicle along the path just for visual flair
+        const allPoints: google.maps.LatLng[] = [];
+        newPolylines.forEach(p => {
+            const path = p.getPath();
+            for (let i = 0; i < path.getLength(); i++) {
+                allPoints.push(path.getAt(i));
+            }
+        });
+
+        if (allPoints.length > 0) {
+            let progress = 0;
+            const animate = () => {
+                progress += 0.005; // speed
+                if (progress > 1) progress = 0;
+                
+                const exactPointIndex = progress * (allPoints.length - 1);
+                const i1 = Math.floor(exactPointIndex);
+                const i2 = Math.min(i1 + 1, allPoints.length - 1);
+                const fraction = exactPointIndex - i1;
+                
+                const p1 = allPoints[i1];
+                const p2 = allPoints[i2];
+                const lat = p1.lat() + (p2.lat() - p1.lat()) * fraction;
+                const lng = p1.lng() + (p2.lng() - p1.lng()) * fraction;
+                
+                onRouteCalculated(
+                   route.distanceMeters || 0,
+                   durationStr,
+                   { lat, lng }
+                );
+                animationRef.current = requestAnimationFrame(animate);
+            };
+            animate();
+        }
       }
     });
 
-    return () => polylinesRef.current.forEach(p => p.setMap(null));
+    return () => {
+       polylinesRef.current.forEach(p => p.setMap(null));
+       if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
   }, [routesLib, map, origin, destination]);
 
   return null;
@@ -387,6 +490,74 @@ function ServiceFeature({ icon, text }: { icon: React.ReactNode, text: string })
           {icon}
        </div>
        <span className="text-xs font-black text-nam-green uppercase tracking-widest">{text}</span>
+    </div>
+  );
+}
+
+function ImageCarousel({ imageUrl, images }: { imageUrl: string, images?: string[] }) {
+  const allImages = React.useMemo(() => {
+    const list = [imageUrl];
+    if (images) {
+       images.forEach(img => {
+         if (!list.includes(img)) list.push(img);
+       });
+    }
+    return list.filter(Boolean);
+  }, [imageUrl, images]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (allImages.length === 0) return null;
+
+  return (
+    <div className="mb-8 flex flex-col gap-3">
+      <div className="relative w-full h-64 rounded-[2rem] overflow-hidden border-[3px] border-nam-gold bg-white group shadow-xl">
+        <AnimatePresence mode="wait">
+          <motion.img 
+            key={currentIndex}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            src={allImages[currentIndex]} 
+            alt="Product" 
+            className="w-full h-full object-cover"
+          />
+        </AnimatePresence>
+        
+        {allImages.length > 1 && (
+          <>
+              <button 
+                 onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => prev === 0 ? allImages.length - 1 : prev - 1) }}
+                 className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+              >
+                 <ChevronRight className="rotate-180" size={24} />
+              </button>
+              <button 
+                 onClick={(e) => { e.stopPropagation(); setCurrentIndex(prev => prev === allImages.length - 1 ? 0 : prev + 1) }}
+                 className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+              >
+                 <ChevronRight size={24} />
+              </button>
+          </>
+        )}
+      </div>
+
+      {allImages.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none snap-x">
+          {allImages.map((img, idx) => (
+             <button 
+               key={idx}
+               onClick={() => setCurrentIndex(idx)}
+               className={cn(
+                 "relative h-16 w-16 shrink-0 rounded-xl overflow-hidden border-2 transition-all snap-start",
+                 currentIndex === idx ? "border-white opacity-100 shadow-lg scale-105" : "border-transparent opacity-60 hover:opacity-100"
+               )}
+             >
+               <img src={img} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
+             </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
