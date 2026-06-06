@@ -9,6 +9,8 @@ export interface Location {
 export interface Farmer {
   uid: string;
   businessName: string;
+  farmName?: string;
+  name?: string;
   region: NamibiaRegion;
   whatsappNumber: string;
   serviceType: ServiceType;
@@ -67,5 +69,6 @@ export interface Order {
   deliveryLocation?: Location;
   cancelReason?: string;
   cancelComments?: string;
+  notes?: string;
   createdAt: string;
 }

@@ -12,7 +12,7 @@ service cloud.firestore {
 
     match /farmers/{farmerId} {
       allow read: if true;
-      allow write: if isOwner(farmerId);
+      allow write: if isOwner(farmerId) || (isSignedIn());
     }
 
     match /users/{userId} {
@@ -45,3 +45,5 @@ service cloud.firestore {
     }
   }
 }
+
+

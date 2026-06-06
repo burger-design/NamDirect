@@ -15,8 +15,8 @@ import DeliveryTracker from './components/DeliveryTracker';
 import SuppliersMap from './components/SuppliersMap';
 import Registration from './components/Registration';
 import CartSheet from './components/CartSheet';
-
 import CustomerOrderHistory from './components/CustomerOrderHistory';
+import AIAssistantWidget from './components/AIAssistantWidget';
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
@@ -134,6 +134,9 @@ function AppContent() {
 
         {/* Cart Sheet */}
         <CartSheet isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+
+        {/* Persistent AI Support Assistant */}
+        <AIAssistantWidget />
 
         {/* Mobile Sidebar */}
         <AnimatePresence>

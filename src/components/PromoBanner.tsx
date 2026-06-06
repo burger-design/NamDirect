@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Banner } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -20,6 +20,7 @@ export default function PromoBanner() {
         setBanners(validBanners);
       } catch (err) {
         console.error("Failed to fetch banners", err);
+        handleFirestoreError(err, OperationType.LIST, 'banners');
       }
     };
     fetchBanners();
