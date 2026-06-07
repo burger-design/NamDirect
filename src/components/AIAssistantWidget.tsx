@@ -118,7 +118,8 @@ export default function AIAssistantWidget() {
       });
 
       if (!response.ok) {
-        throw new Error('Response error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Response error');
       }
 
       const data = await response.json();
@@ -131,13 +132,13 @@ export default function AIAssistantWidget() {
       };
 
       setMessages(prev => [...prev, assistantMsg]);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       
       const errMsg: Message = {
         id: Math.random().toString(),
         role: 'assistant',
-        text: "Apologies, Tate/Meme. I am having a temporary connection issue. Please check your network or try again shortly!",
+        text: `Apologies, Tate/Meme. I encountered status issue: ${err.message || 'Can not connect'}. Please ensure your GEMINI_API_KEY is configured in Settings > Secrets or try again shortly!`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errMsg]);

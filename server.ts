@@ -11,20 +11,42 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Initialize Gemini Client lazily to prevent load-time errors and allow environment variables to be fully resolved
+let aiInstance: GoogleGenAI | null = null;
+
+function getGeminiClient() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || "";
+    console.log(`[Diagnostics] Initializing Gemini Client. Key presence:`, {
+      has_GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+      gemini_key_len: process.env.GEMINI_API_KEY?.length || 0,
+      has_GOOGLE_API_KEY: !!process.env.GOOGLE_API_KEY,
+      has_API_KEY: !process.env.API_KEY,
+    });
+    
+    // If no key is set, we throw a clear informative error to prevent silent ADC scope errors
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not defined in the environment. Please add it in your Secrets / Env settings.");
     }
+
+    aiInstance = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
-});
+  return aiInstance;
+}
 
 // API endpoints
 app.post("/api/chat", async (req, res) => {
   try {
     const { message, history } = req.body;
+    
+    const ai = getGeminiClient();
     
     const systemInstruction = `You are the NamDirect AI Support Assistant, an exceptionally professional, welcoming, and helpful guide for NamDirect – Namibia's premier digital marketplace connecting local producers, SMEs, and farmers directly with end-consumers.
 
